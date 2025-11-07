@@ -1,5 +1,4 @@
 #include "max30102_driver.h"
-#include "hal_reg_map.h"
 #include "hal_max30102_sensor.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/timers.h"
@@ -14,8 +13,7 @@ static SemaphoreHandle_t g_lock;
 /* Default LED currents (approx. 7 mA) – adjust if needed */
 #define MAX30102_DEFAULT_LED_CURRENT   (0x24)
 
-esp_err_t max30102Init(void)
-{
+esp_err_t max30102Init(void) {
     esp_err_t ret;
 
     // Basic sensor bring-up
@@ -40,44 +38,31 @@ esp_err_t max30102Init(void)
     return ESP_OK;
 }
 
-esp_err_t max30102Configure(sensorMode mode, uint8_t redCurrent, uint8_t irCurrent)
-{
+esp_err_t max30102Configure(sensorMode mode, uint8_t redCurrent, uint8_t irCurrent) {
     esp_err_t ret;
     ret = max30102SetMode(mode);
     if (ret != ESP_OK) return ret;
     return max30102SetLedCurrent(redCurrent, irCurrent);
 }
 
-esp_err_t max30102ReadSample(max30102Sample *out)
-{
+esp_err_t max30102ReadSample(max30102Sample *out) {
     if (!out) return ESP_ERR_INVALID_ARG;
-    return max30102ReadFifo(&out->red, &out->ir);
+    return max30102ReadIfReady(out);
 }
 
-esp_err_t max30102Reset(void)
-{
+esp_err_t max30102Reset(void) {
     return max30102ResetFifo();
 }
 
-esp_err_t max30102ReadInterruptStatus(uint8_t *intStatus1, uint8_t *intStatus2)
-{
+esp_err_t max30102ReadInterruptStatus(uint8_t *intStatus1, uint8_t *intStatus2) {
     return max30102ReadInterrupt(intStatus1, intStatus2);
 }
 
 esp_err_t max30102HandleInterrupt(max30102Sample *out)
 {
-    uint8_t int1 = 0, int2 = 0;
-    esp_err_t ret = max30102ReadInterrupt(&int1, &int2);
-    if (ret != ESP_OK) return ret;
-
-    if ((int1 & MAX30102_INT_PPG_RDY_MASK) != 0) {
-        if (out) {
-            ret = max30102ReadFifo(&out->red, &out->ir);
-            if (ret != ESP_OK) return ret;
-        }
-    }
-
-    return ESP_OK;
+    esp_err_t ret = max30102ReadIfReady(out);
+    if (ret == ESP_ERR_NOT_FOUND) return ESP_OK;
+    return ret;
 }
 
 static void stopTimerCb(TimerHandle_t xTimer) {
@@ -85,8 +70,7 @@ static void stopTimerCb(TimerHandle_t xTimer) {
     max30102StopSession();
 }
 
-esp_err_t max30102StartSession(uint32_t durationMs)
-{
+esp_err_t max30102StartSession(uint32_t durationMs) {
     if (!g_lock) g_lock = xSemaphoreCreateMutex();
     xSemaphoreTake(g_lock, portMAX_DELAY);
 
@@ -118,8 +102,7 @@ esp_err_t max30102StartSession(uint32_t durationMs)
     return ESP_OK;
 }
 
-esp_err_t max30102StopSession(void)
-{
+esp_err_t max30102StopSession(void) {
     if (!g_lock) g_lock = xSemaphoreCreateMutex();
     xSemaphoreTake(g_lock, portMAX_DELAY);
 
@@ -140,7 +123,6 @@ esp_err_t max30102StopSession(void)
     return ESP_OK;
 }
 
-bool max30102IsRunning(void)
-{
+bool max30102IsRunning(void) {
     return g_running;
 }

@@ -104,18 +104,29 @@ esp_err_t max30102ResetFifo(void)
 /**
  * @brief Read one sample (RED + IR) from FIFO
  */
-esp_err_t max30102ReadFifo(uint32_t *redData, uint32_t *irData)
+esp_err_t max30102ReadIfReady(max30102Sample *out)
 {
-    uint8_t fifoData[6];
-    esp_err_t ret = regBurstRead(REG_FIFO_DATA, fifoData, 6);
+    if (out == NULL) return ESP_ERR_INVALID_ARG;
+
+    uint8_t int1 = 0, int2 = 0;
+    esp_err_t ret = regRead8(REG_INT_STATUS_1, &int1);
     if (ret != ESP_OK) return ret;
 
-    *redData = ((uint32_t)(fifoData[0] & 0x03) << 16) |
-               ((uint32_t)fifoData[1] << 8) |
-               fifoData[2];
-    *irData  = ((uint32_t)(fifoData[3] & 0x03) << 16) |
-               ((uint32_t)fifoData[4] << 8) |
-               fifoData[5];
+    // 读取 INT_STATUS_2 以清除可能的温度就绪等标志（可选）
+    (void)regRead8(REG_INT_STATUS_2, &int2);
+
+    // 掩码判断：是否有新数据
+    if ((int1 & MAX30102_INT_PPG_RDY_MASK) == 0) {
+        return ESP_ERR_NOT_FOUND; // 没有新样本
+    }
+
+    // FIFO 连续读 6 字节：RED[18:0] + IR[18:0]
+    uint8_t buf[6];
+    ret = regBurstRead(REG_FIFO_DATA, buf, sizeof(buf));
+    if (ret != ESP_OK) return ret;
+
+    out->red =  ((uint32_t)(buf[0] & 0x03) << 16) | ((uint32_t)buf[1] << 8) | buf[2];
+    out->ir  =  ((uint32_t)(buf[3] & 0x03) << 16) | ((uint32_t)buf[4] << 8) | buf[5];
 
     return ESP_OK;
 }
