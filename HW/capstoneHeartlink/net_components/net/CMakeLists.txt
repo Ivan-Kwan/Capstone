@@ -1,0 +1,16 @@
+idf_component_register(
+  SRCS
+    "src/wifi_sta.c"
+    "src/net_time_sntp.c"
+    "src/http_client_common.c"
+    "src/transport_http.c"
+    "tls_certs/tls_bundle.c"
+  INCLUDE_DIRS 
+    "include"
+  REQUIRES 
+    esp_wifi 
+    esp_event 
+    esp_netif 
+    esp_http_client 
+    esp_sntp
+)
