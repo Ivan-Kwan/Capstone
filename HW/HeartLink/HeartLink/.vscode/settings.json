@@ -1,0 +1,10 @@
+{
+    "files.associations": {
+        "*.embeddedhtml": "html",
+        "freertos.h": "c",
+        "queue.h": "c",
+        "gpio.h": "c",
+        "hal_max30102_sensor.h": "c",
+        "wifi_sta.h": "c"
+    }
+}
